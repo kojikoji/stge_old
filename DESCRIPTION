@@ -1,0 +1,14 @@
+Package: stge
+Title: Estimation for Spatio-Temporal Gene Expression pattern
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "First",
+           family = "Last",
+           role = c("aut", "cre"),
+           email = "first.last@example.com")
+Description: This package is inteded to estimate spatio-temporal expression patters by combining cell migration data and single cell RNA seq data.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 6.1.1
