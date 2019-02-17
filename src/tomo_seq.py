@@ -2,7 +2,6 @@
 import numpy as np
 from numpy import linalg as LA
 from fix_axis import fix_axis
-from GP_data_processor import GP_data_processor
 
 
 class tomo_seq:
@@ -173,21 +172,3 @@ class tomo_seq_all_axis:
     def get_cell_num(self):
         cell_num_list = [ts.cell_num for ts in self.ts_dict.values()]
         return(sum(cell_num_list))
-
-
-class tomo_seq_all_axis_shield(tomo_seq_all_axis):
-    def __init__(self, data_dir, sample_num=2000):
-        fname = data_dir + '/cell_density_mat.mat'
-        # cell coordinate preparation
-        gpp = GP_data_processor()
-        gpp.register_file(fname)
-        point_mat = gpp.sample_point_time(6, size=sample_num)
-        divnum = np.arange(-2, 2, 0.055)
-        # expression data preparation
-        super().__init__(point_mat)
-        fname_av = data_dir + '/zfshield_av.csv'
-        self.register_axis(fname_av, "av", divnum)
-        fname_vd = data_dir + '/zfshield_vd.csv'
-        self.register_axis(fname_vd, "vd", divnum)
-        fname_lr = data_dir + '/zfshield_lr.csv'
-        self.register_axis(fname_lr, "lr", divnum)
