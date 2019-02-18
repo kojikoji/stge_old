@@ -7,11 +7,7 @@ from fix_axis import fix_axis
 import pickle
 import numba
 import progressbar
-
-def load_obj(fname, dir_name='data/base_data/objs/'):
-    with open(dir_name + fname, mode='rb') as f:
-        obj = pickle.load(f)
-    return(obj)
+from utils import load_obj
 
 
 @numba.jit(nopython=True)
@@ -54,6 +50,18 @@ class cell_tracker:
         self.point_num = point_num
         self.init_frame = 100
         self.end_frame = 800
+
+    def set_precomputed(
+            self,
+            ancestor_dict_path, sample_idx_vec_path,
+            point_num):
+        self.__init__()
+        self.point_num = 1000
+        self.point_num = self.point_num
+        self.ancestor_dict = load_obj(ancestor_dict_path)
+        self.sample_idx_vec_dict = load_obj(sample_idx_vec_path)
+        self.fidx_vec = np.array(
+            [fidx for fidx in self.sample_idx_vec_dict.keys()])
 
     def hpf2frame(self, hpf):
         minute = hpf*60

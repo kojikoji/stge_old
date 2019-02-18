@@ -104,7 +104,7 @@ def make_sc_t_nums(sc_dict, t_vec):
 
 class data_manager:
     def __init__(
-            self, point_num, default=False,
+            self, default=False,
             div_width_dict_shield={"av": 24, "vd": 30, "lr": 22},
             div_width_dict_ss10={"va": 27, "dv": 20, "lr": 31}):
         self.ts_dict = dict()
@@ -114,14 +114,8 @@ class data_manager:
         self.zero_num = 0
         self.div_width_dict_shield = div_width_dict_shield
         self.div_width_dict_ss10 = div_width_dict_ss10
-        if default:
-            self.set_default_ct()
-        else:
-            self.point_num = point_num
-            self.set_ct()
         self.stage_time_dict = {}
         self.sc_dict = {}
-        self.gene_df = pd.read_csv("data/base_data/sc/single_cell_gene_list.tsv", delimiter="\t")
 
     def set_ct(self):
         self.ct = load_obj("cell_tracker_with_lineage")
@@ -137,6 +131,21 @@ class data_manager:
             "f100_f700_n1000_lineage_ancestor_dict")
         self.ct.sample_idx_vec_dict = load_obj(
             "f100_f700_n1000_lineage_sample_idx_vec_dict")
+        self.ct.fidx_vec = np.array(
+            [fidx for fidx in self.ct.sample_idx_vec_dict.keys()])
+
+    def set_outer_ct(self, ct):
+        self.ct = ct
+
+    def set_precomputed_ct(self, base_obj_path,
+                           ancestor_dict_path, sample_idx_vec_path,
+                           point_num):
+        self.ct = load_obj(base_obj_path)
+        self.ct.__init__()
+        self.point_num = 1000
+        self.ct.point_num = self.point_num
+        self.ct.ancestor_dict = load_obj(ancestor_dict_path)
+        self.ct.sample_idx_vec_dict = load_obj(sample_idx_vec_path)
         self.ct.fidx_vec = np.array(
             [fidx for fidx in self.ct.sample_idx_vec_dict.keys()])
 
@@ -228,11 +237,17 @@ class data_manager:
         self.stage_time_dict[stage] = hpf
         self.sc_dict[hpf] = pd.read_csv(file_name, index_col=0)
 
+    def register_sc_dict(self, sc_dict):
+        self.sc_t_vec = np.array(list(sc_dict.keys()))
+        self.t_vec = np.array(list(set(np.append(self.t_vec, self.sc_t_vec))))
+        self.sc_dict = sc_dict
+
     def process(self, point_num=2000):
         self.sc_t_nums = make_sc_t_nums(self.sc_dict, self.sc_t_vec)
         self.sc_t_breaks = make_sc_t_breaks(self.sc_dict, self.sc_t_vec)
         self.ref_t_nums = make_ref_t_nums(self.point_num, self.t_vec)
         self.ref_t_breaks = make_ref_t_breaks(self.point_num, self.t_vec)
+        self.normalize_sc_dict()
 
     def refresh_ref_t(self):
         self.ref_t_nums = make_ref_t_nums(self.point_num, self.t_vec)

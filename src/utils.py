@@ -37,7 +37,7 @@ def save_obj(obj, fname, dir_name='data/base_data/objs/'):
           "in", dir_name + fname)
 
 
-def load_obj(fname, dir_name='data/base_data/objs/'):
+def load_obj(fname, dir_name='./'):
     with open(dir_name + fname, mode='rb') as f:
         obj = pickle.load(f)
     return(obj)
