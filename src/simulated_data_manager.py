@@ -1,9 +1,7 @@
 #-*- coding: utf-8 -*-
 import numpy as np
-import itertools
 from fix_axis import fix_axis
 from tomo_seq import tomo_seq_all_axis
-from GP_data_processor import GP_data_processor
 from numpy import random as nprd
 from numpy import array as npar
 from data_manager import data_manager

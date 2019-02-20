@@ -117,23 +117,6 @@ class data_manager:
         self.stage_time_dict = {}
         self.sc_dict = {}
 
-    def set_ct(self):
-        self.ct = load_obj("cell_tracker_with_lineage")
-        self.ct.__init__()
-        self.ct.point_num = self.point_num
-
-    def set_default_ct(self):
-        self.ct = load_obj("cell_tracker_with_lineage")
-        self.ct.__init__()
-        self.point_num = 1000
-        self.ct.point_num = self.point_num
-        self.ct.ancestor_dict = load_obj(
-            "f100_f700_n1000_lineage_ancestor_dict")
-        self.ct.sample_idx_vec_dict = load_obj(
-            "f100_f700_n1000_lineage_sample_idx_vec_dict")
-        self.ct.fidx_vec = np.array(
-            [fidx for fidx in self.ct.sample_idx_vec_dict.keys()])
-
     def set_outer_ct(self, ct):
         self.ct = ct
 
@@ -238,9 +221,15 @@ class data_manager:
         self.sc_dict[hpf] = pd.read_csv(file_name, index_col=0)
 
     def register_sc_dict(self, sc_dict):
+        sc_key_list = list(sc_dict.keys())
+        for sc_key in sc_key_list:
+            sc_dict[self.stage_time_dict[sc_key]] = sc_dict.pop(sc_key)
         self.sc_t_vec = np.array(list(sc_dict.keys()))
         self.t_vec = np.array(list(set(np.append(self.t_vec, self.sc_t_vec))))
         self.sc_dict = sc_dict
+
+    def register_use_gene(self, gene_df):
+        self.gene_df = gene_df
 
     def process(self, point_num=2000):
         self.sc_t_nums = make_sc_t_nums(self.sc_dict, self.sc_t_vec)
@@ -248,25 +237,11 @@ class data_manager:
         self.ref_t_nums = make_ref_t_nums(self.point_num, self.t_vec)
         self.ref_t_breaks = make_ref_t_breaks(self.point_num, self.t_vec)
         self.normalize_sc_dict()
+        self.set_Ys_Yt_A()
 
     def refresh_ref_t(self):
         self.ref_t_nums = make_ref_t_nums(self.point_num, self.t_vec)
         self.ref_t_breaks = make_ref_t_breaks(self.point_num, self.t_vec)
-
-    def select_gene_df(self, gene_df):
-        # select genes
-        ts_gene_id = [self.ts_dict[7.6].get_total(gene_id) > 0
-                      for gene_id in gene_df.gene_id]
-        ts_gene_df = gene_df[ts_gene_id]
-        gene_max_list = np.array(
-            [np.max(get_record_safe(self.sc_dict[7.6], gene_name))
-             for gene_name in ts_gene_df.gene_name])
-        max_ts_gene_df = ts_gene_df[gene_max_list > 10]
-        gene_sum_list = np.array(
-            [np.sum(get_record_safe(self.sc_dict[7.6], gene_name))
-             for gene_name in max_ts_gene_df.gene_name])
-        sc_ts_gene_df = max_ts_gene_df[gene_sum_list > 100]
-        return(sc_ts_gene_df)
 
     def get_ts_exp(self, gene_id):
         exp_vec = make_exp_vec(
@@ -288,8 +263,7 @@ class data_manager:
             cell_sum_mat = [cell_sum for _ in range(sc_df.shape[0])]
             self.sc_dict[t] = sc_df / np.stack(cell_sum_mat, axis=0)
 
-    def get_sc_exp(self, gene_id):
-        gene_name = self.gene_id2name(gene_id)
+    def get_sc_exp(self, gene_name):
         exp_vec = np.concatenate(
             [get_record_safe(self.sc_dict[t], gene_name)
              for t in self.sc_t_vec])
@@ -306,12 +280,17 @@ class data_manager:
             exp_vec = ratio*exp_vec
         return(exp_vec)
 
-    def get_sc_exp_mat(self, gene_id_list):
+    def get_sc_exp_mat(self, gene_name_list):
         exp_mat = np.stack(
-            [self.get_sc_exp(gene_id)
-             for gene_id in gene_id_list],
+            [self.get_sc_exp(gene_name)
+             for gene_name in gene_name_list],
             axis=1)
         return(exp_mat)
+
+    def set_Ys_Yt_A(self):
+        self.A = self.get_ts_assignment_matrix()
+        self.Ys = self.get_sc_exp_mat(self.gene_df.gene_name)
+        self.Yt = self.get_ts_exp_mat(self.gene_df.gene_id)
 
     def get_pmat(self, hpf):
         pmat = self.ct.get_pmat(hpf)
@@ -320,10 +299,6 @@ class data_manager:
     def get_pmat_pmat(self, hpf1, hpf12):
         pmat_tuple = self.ct.get_pmat_pmat(hpf1, hpf12)
         return(pmat_tuple)
-
-    def get_region_idx_mat(self, hpf):
-        region_idx_mat = self.ts_dict[hpf].get_slice_idx_mat()
-        return(region_idx_mat)
 
     def get_ts_assignment_matrix(self):
         A_row_list = []
@@ -342,12 +317,6 @@ class data_manager:
             A_row_list.append(A_row)
         A = np.concatenate(A_row_list, axis=0)
         return(A)
-
-    def get_t_init_idx(self, hpf):
-        return(self.t_init_vec[self.t_vec == hpf][0])
-
-    def get_t_end_idx(self, hpf):
-        return(self.t_end_vec[self.t_vec == hpf][0])
 
     def get_t_vec(self):
         return(self.t_vec)

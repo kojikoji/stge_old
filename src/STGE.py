@@ -280,184 +280,24 @@ class STGE:
         self.opt_flag_vec = np.array([1, 1, 1])
         self.diag_val = 0
 
-    def register_data_manager(self, dm):
+    def register_data_manager(self, dm, reg_method="zscore"):
         self.dm = dm
+        self.A = self.dm.A
+        self.Yt = self.dm.Yt
+        self.Ys = self.dm.Ys
+        print("Number of genes used in estimation: ", self.Ys.shape[1])
+        self.regulalize_Y(reg_method)
 
-    def make_gram_mat_part_sym(self, t, kernel_name="origin"):
-            region_idx_mat = self.dm.get_region_idx_mat(t)
-            pmat = self.dm.get_pmat(t)
-            K = gram_mat_pmat2pmat_sym(
-                pmat, self.sigma_f, self.l_corr, self.t_corr,
-                name2flag[kernel_name])
-            C = summed_gram_mat_sym(
-                K, region_idx_mat,
-                self.sigma_f, self.sigma_obs,
-                name2flag[kernel_name])
-            return(C)
-
-    def make_gram_mat_part(self, t_row, t_col,
-                           kernel_name="origin"):
-        (pmat_row, pmat_col) = self.dm.get_pmat_pmat(
-            t_row, t_col)
-        dt = t_col - t_row
-        K = gram_mat_pmat2pmat(
-            pmat_row, pmat_col, dt,
-            self.sigma_f, self.l_corr, self.t_corr,
-            name2flag[kernel_name])
-        region_idx_mat_row = self.dm.get_region_idx_mat(t_row)
-        region_idx_mat_col = self.dm.get_region_idx_mat(t_col)
-        C = summed_gram_mat(
-            K, region_idx_mat_row, region_idx_mat_col)
-        return(C)
-
-    def make_gram_mat(self, kernel_name="origin"):
-        exp_num = self.dm.get_t_end_idx(max(self.dm.get_t_vec()))
-        Cst = np.empty((exp_num, exp_num))
-        # gram matrix for same time points
-        for t in self.dm.get_t_vec():
-            init = self.dm.get_t_init_idx(t)
-            end = self.dm.get_t_end_idx(t)
-            Cst[init:end, init:end]\
-                = self.make_gram_mat_part_sym(
-                    t, kernel_name=kernel_name)
-        # gram matrix for different time points
-        for t_row in self.dm.get_t_vec():
-            init_row = self.dm.get_t_init_idx(t_row)
-            end_row = self.dm.get_t_end_idx(t_row)
-            for t_col in self.dm.get_t_vec()[self.dm.get_t_vec() > t_row]:
-                init_col = self.dm.get_t_init_idx(t_col)
-                end_col = self.dm.get_t_end_idx(t_col)
-                Cst[init_row:end_row, init_col:end_col]\
-                    = self.make_gram_mat_part(
-                        t_row, t_col,
-                        kernel_name=kernel_name)
-        # half of gram matrix can be copied
-        # due to symetry
-        for t_row in self.dm.get_t_vec():
-            init_row = self.dm.get_t_init_idx(t_row)
-            end_row = self.dm.get_t_end_idx(t_row)
-            for t_col in self.dm.get_t_vec()[self.dm.get_t_vec() < t_row]:
-                init_col = self.dm.get_t_init_idx(t_col)
-                end_col = self.dm.get_t_end_idx(t_col)
-                Cst[init_row:end_row, init_col:end_col]\
-                    = np.transpose(
-                        Cst[init_col:end_col,
-                            init_row:end_row])
-        Cst = np.matrix(Cst)
-        return(Cst)
-
-    def make_gram_mat_point_part(
-            self, hpf, t_col, point_index_vec):
-        (pmat_select, pmat_col) = self.dm.get_pmat_pmat(
-            hpf, t_col)
-        dt = abs(hpf - t_col)
-        K = gram_mat_pmat2pmat(
-            pmat_select, pmat_col, dt,
-            self.sigma_f, self.l_corr, self.t_corr,
-            name2flag['origin'])
-        K_select = K[point_index_vec, :]
-        region_idx_mat_col\
-            = self.dm.get_region_idx_mat(t_col)
-        C = summed_gram_mat_col(
-            K_select, region_idx_mat_col)
-        return(C)
-
-    def make_gram_mat_point(self, hpf, point_index_vec):
-        exp_num = self.dm.get_t_end_idx(max(self.dm.get_t_vec()))
-        Cst = np.empty((len(point_index_vec), exp_num))
-        # gram matrix for different time points
-        for t_col in self.dm.get_t_vec():
-            init_col = self.dm.get_t_init_idx(t_col)
-            end_col = self.dm.get_t_end_idx(t_col)
-            Cst[:, init_col:end_col]\
-                = self.make_gram_mat_point_part(
-                    hpf, t_col, point_index_vec)
-        return(Cst)
-
-    def prepare_gene(self, gene_id_list):
-        self.obs_mat = self.dm.get_exp_mat(gene_id_list)
-
-    def reconstruct_expression(
-            self, sigma_f, l_corr, t_corr, sigma_obs,
-            gene_id_list, hpf, sample_num):
-        # reconstruct expression on sampled points
-        self.prepare_gene(gene_id_list)
-        # parameter setting
-        self.sigma_f = sigma_f
-        self.l_corr = l_corr
-        self.t_corr = t_corr
-        self.sigma_obs = sigma_obs
-        # calculate kernel matrix
-        self.gram_mat = self.make_gram_mat()
-        premean_mat = (self.gram_mat.I) @ self.obs_mat
-        # calculate estimated mean and sd of expression
-        pmat_hpf = self.dm.ct.get_pmat(hpf)
-        sample_index_vec = np.arange(pmat_hpf.shape[0])
-        Cst = self.make_gram_mat_point(hpf, sample_index_vec)
-        mean_mat = Cst @ premean_mat
-        # concatenate coordinate,  mean and sd
-        sample_pmat = pmat_hpf[sample_index_vec, :]
-        reconst_mat \
-            = np.concatenate((sample_pmat, mean_mat), axis=1)
-        return(reconst_mat)
-
-    def nega_log_likelihood(self, params):
-        print("likelihood")
-        self.sigma_f = params[0]
-        self.l_corr = params[1]
-        self.t_corr = params[2]
-        self.sigma_obs = params[3]
-        self.gram_mat_origin = self.make_gram_mat()
-        self.gram_mat = self.sigma_f * self.gram_mat_origin
-        nllh = self.nega_log_likelihood_no_gram()
-        print("nllh", -nllh)
-        return(nllh)
-
-    def nega_log_likelihood_no_gram(self):
-        obs_num = self.obs_vec.shape[0]
-        log_det_gram = np.linalg.slogdet(self.gram_mat)[1]
-        # log_likelihood = -n log(2pi)/2 - log|C^-1|/2 - y^tCy/2
-        llh = -(obs_num*math.log(2*np.pi))/2 \
-              - log_det_gram/2 \
-              - self.obs_vec.T @ self.gram_mat.I @ self.obs_vec/2
-        return(-llh[0, 0])
-
-    def nega_log_likelihood_sigf_fix(self, params):
-        print("likelihood")
-        self.sigma_f = 1.0
-        self.l_corr = params[0]
-        self.t_corr = params[1]
-        self.sigma_obs = params[2]
-        self.gram_mat_origin = self.make_gram_mat()
-        obs_num = self.obs_vec.shape[0]
-        # solve for sigma f
-        self.sigma_f = (self.obs_vec.T @ self.gram_mat_origin.I @ self.obs_vec)[0,0]/obs_num
-        self.gram_mat = self.sigma_f * self.gram_mat_origin
-        nllh = self.nega_log_likelihood_no_gram()
-        print("nllh", -nllh)
-        return(nllh)
-
-    def nega_log_likelihood_dparam(self, params, kernel_name):
-        self.sigma_f = params[0]
-        self.l_corr = params[1]
-        self.t_corr = params[2]
-        self.sigma_obs = params[3]
-        gram_mat_dparam = self.make_gram_mat(kernel_name=kernel_name)
-        alpha = self.gram_mat.I @ self.obs_vec
-        dllh_dparam =\
-                      - np.trace(self.gram_mat.I @ gram_mat_dparam)/2 \
-                      + alpha.T @ gram_mat_dparam @ alpha/2
-        return(-dllh_dparam[0, 0])
-
-    def nega_log_likelihood_dparam_all(self, params):
-        kernel_name_list = ["dl_corr", "dt_corr", "ddt"]
-        nllh_dparam_vec = np.array([
-            self.nega_log_likelihood_dparam(
-                np.array([self.sigma_f, *params]), kernel_name)
-            for kernel_name in kernel_name_list])
-        print("params:", params)
-        print("dparams", nllh_dparam_vec * self.opt_flag_vec)
-        return(nllh_dparam_vec * self.opt_flag_vec)
+    def regulalize_Y(self, method):
+        mean_Ys = np.mean(self.Ys, axis=0).reshape((1, self.Ys.shape[1]))
+        std_Ys = np.std(self.Ys, axis=0).reshape((1, self.Ys.shape[1]))
+        cell_num = np.sum(self.A, axis=1).reshape(self.A.shape[0], 1)
+        if method == 'zscore':
+            self.Ys = (self.Ys - mean_Ys)/std_Ys
+            self.Yt = (self.Yt - cell_num @ mean_Ys)/std_Ys
+        elif method == 'sum':
+            self.Ys = self.Ys/mean_Ys
+            self.Yt = self.Yt/mean_Ys
 
     def make_K_part_sym(self, t, kernel_name="origin"):
         pmat = self.dm.get_pmat(t)
@@ -485,7 +325,6 @@ class STGE:
             [np.concatenate(
                 [gram_dict[t1][t2] for t2 in t2_keys], axis=1)
              for t1 in t1_keys], axis=0)
-             
         return(gram_mat)
 
     def make_K(self, kernel_name="origin"):
@@ -538,8 +377,8 @@ class STGE:
             self.Mu, self.Sigma,
             self.A, self.K, self.K_inv,
             self.sigma_s, self.sigma_t)
-        print("L:",L)
-        print("param:",theta)
+        print("L:", L)
+        print("param:", theta)
         return(-L)
 
     def mL_dtheta(self, theta):
@@ -567,46 +406,6 @@ class STGE:
                              L_dsigma_s, L_dsigma_t])
         return(-L_dtheta)
 
-    def regulalize_Y(self, method):
-        mean_Ys = np.mean(self.Ys, axis=0).reshape((1, self.Ys.shape[1]))
-        std_Ys = np.std(self.Ys, axis=0).reshape((1, self.Ys.shape[1]))
-        cell_num = np.sum(self.A, axis=1).reshape(self.A.shape[0], 1)
-        if method == 'zscore':
-            self.Ys = (self.Ys - mean_Ys)/std_Ys
-            self.Yt = (self.Yt - cell_num @ mean_Ys)/std_Ys
-        elif method == 'sum':
-            self.Ys = self.Ys/mean_Ys
-            self.Yt = self.Yt/mean_Ys
-            
-    def set_Ys_Yt_A(self, gene_df, filter=False, reg_method="zscore"):
-        self.A = self.dm.get_ts_assignment_matrix()
-        gene_id_list = gene_df.gene_id
-        Ys = self.dm.get_sc_exp_mat(gene_id_list)
-        Yt = self.dm.get_ts_exp_mat(gene_id_list)
-        if filter:
-            Ys_slice = get_num_break_slice(
-                self.dm.sc_t_nums, self.dm.sc_t_breaks, 7.6)
-            ts_many_exp_genes = np.apply_along_axis(
-                lambda x: len(x[x > 0]), 0, Yt) > 0
-            sc_many_exp_genes = np.apply_along_axis(
-                lambda x: len(x[x > 0]), 0, Ys[Ys_slice, :]) > 0
-            many_exp_genes = np.logical_and(ts_many_exp_genes, sc_many_exp_genes)
-            ts_no_inf_gene = np.logical_not(np.isnan(np.sum(Yt, axis=0)))
-            many_exp_genes = np.logical_and(many_exp_genes, ts_no_inf_gene)
-            self.many_exp_genes = many_exp_genes
-            self.Yt = Yt[:, many_exp_genes]
-            self.Ys = Ys[:, many_exp_genes]
-            self.gene_id_list = gene_df.gene_id[many_exp_genes]
-            self.gene_name_list = gene_df.gene_name[many_exp_genes]
-            print("Number of genes used in estimation: ", self.Ys.shape[1])
-        else:
-            self.Yt = Yt
-            self.Ys = Ys
-            self.gene_id_list = gene_df.gene_id
-            self.gene_name_list = gene_df.gene_name
-            print("Number of genes used in estimation: ", self.Ys.shape[1])
-        self.regulalize_Y(reg_method)
-
     def set_params(self, l_corr, t_corr, sigma_f,
                    sigma_s, sigma_t):
         self.l_corr = l_corr
@@ -617,7 +416,7 @@ class STGE:
         self.sigma_t = sigma_t
         self.K = self.make_K()
         self.K_inv, self.K = cholesky_inv_origin(self.K)
- 
+
     def set_optimized_sigma_s_t(self):
         gene_num = self.Mu.shape[1]
         self.sigma_s = variational_bayes.calculate_optimized_sigma_s(
@@ -628,10 +427,10 @@ class STGE:
     def set_optimized_sigma_f(self):
         Kp_inv = self.K_inv*self.sigma_f
         self.sigma_f = variational_bayes.calculate_optimized_sigma_f(
-            self.Mu, self.Sigma, Kp_inv) 
+            self.Mu, self.Sigma, Kp_inv)
         self.K = self.make_K()
         self.K_inv, self.K = cholesky_inv_origin(self.K)
-        
+
     def init_VB_var(self):
         self.Pi_list = [np.full((self.dm.sc_t_nums[t],
                                  self.dm.ref_t_nums[t]),
@@ -759,7 +558,7 @@ class STGE:
     def reconstruct_gene_specified_step(
             self, gene_name, new_t, dt_est=False, sc_est=False):
         k_new_old = self.make_k_new_old(new_t, dt_est)
-        gene_idx = self.get_gene_idx(gene_name)
+        gene_idx = self.dm.gene_df.gene_name.str.find(gene_name)
         if not sc_est:
             next_Mu = k_new_old @ self.K_inv @ self.Mu[:, gene_idx]
         else:
@@ -772,82 +571,8 @@ class STGE:
             self.reconstruct_gene_specified_step(
                 gene_name, new_t, dt_est, sc_est)
             for new_t in progressbar.progressbar(
-                    self.dm.ct.get_all_frame_hpf())])
+                self.dm.ct.get_all_frame_hpf())])
         return(exp_tensor)
-
-    def preserve_Ys_Yt(self, filepath):
-        store_dict = dict()
-        store_dict['Yt'] = self.Yt
-        store_dict['Ys'] = self.Ys
-        f = open(filepath, "wb")
-        pickle.dump(store_dict, f)
-
-    def recover_Ys_Yt_A(self, filepath):
-        store_dict = pickle.load(filepath)
-        self.A = self.dm.get_ts_assignment_matrix()
-        self.Yt = store_dict['Yt']
-        self.Ys = store_dict['Ys']
-
-    def preserve(self, file_path):
-        store_dict = dict()
-        store_dict['t_vec'] = self.dm.t_vec
-        store_dict['sc_t_vec'] = self.dm.sc_t_vec
-        store_dict['ts_t_vec'] = self.dm.ts_t_vec
-        store_dict['gene_id_list'] = self.gene_id_list
-        store_dict['gene_name_list'] = self.gene_name_list
-        store_dict['sample_idx_vec_dict'] = self.dm.ct.sample_idx_vec_dict
-        store_dict['Pi_list'] = self.Pi_list
-        store_dict['mDelta_list'] = self.mDelta_list
-        store_dict['L'] = self.L
-        store_dict['l_corr'] = self.l_corr
-        store_dict['t_corr'] = self.t_corr
-        store_dict['sigma_f'] = self.sigma_f
-        store_dict['sigma_s'] = self.sigma_s
-        store_dict['sigma_t'] = self.sigma_t
-        # for simulation case
-        try:
-            store_dict['true_exp_dict'] = self.dm.true_exp_dict
-            store_dict['sc_idx_dict'] = self.dm.sc_idx_dict
-        except AttributeError:
-            print("No simulation variables")
-        f = open(file_path, "w")
-        json.dump(store_dict, f, cls=MyEncoder)
-
-    def recover(self, file_path, gene_origin=False):
-        """
-        Recover STGE object
-        """
-        f = open(file_path, 'r')
-        store_dict = json.load(f)
-        self.dm.t_vec = np.array(store_dict['t_vec'])
-        self.dm.sc_t_vec = np.array(store_dict['sc_t_vec'])
-        self.dm.ts_t_vec = np.array(store_dict['ts_t_vec'])
-        self.dm.ct.sample_idx_vec_dict = {
-            int(str_fidx): store_dict['sample_idx_vec_dict'][str_fidx]
-            for str_fidx in store_dict['sample_idx_vec_dict'].keys()}
-        self.Pi_list = [np.array(Pi) for Pi in store_dict['Pi_list']]
-        self.mDelta_list = [np.array(mDelta)
-                            for mDelta in store_dict['mDelta_list']]
-        self.L = store_dict['L']
-        self.set_params(
-            store_dict['l_corr'], store_dict['t_corr'], store_dict['sigma_f'],
-            store_dict['sigma_s'], store_dict['sigma_t'])
-        # for simulation case
-        try:
-            self.dm.true_exp_dict = {
-                float(t): np.array(store_dict['true_exp_dict'][t])
-                for t in store_dict['true_exp_dict'].keys()}
-            self.dm.sc_idx_dict = {
-                float(t): np.array(store_dict['sc_idx_dict'][t])
-                for t in store_dict['sc_idx_dict'].keys()}
-        except KeyError:
-            print("No simulation prameters")
-        if gene_origin:
-            self.gene_id_list = store_dict['gene_id_list']
-            self.gene_name_list = store_dict['gene_name_list']
-        self.A = self.dm.get_ts_assignment_matrix()
-        self.Ys = self.dm.get_sc_exp_mat(self.gene_id_list)
-        self.Yt = self.dm.get_ts_exp_mat(self.gene_id_list)
 
     def evaluate_recovery_ts_exp(self, lowerA_quantile=0.5):
         """
@@ -867,7 +592,3 @@ class STGE:
                          big_A_weight_AMu[:, i]/big_A)
              for i in range(big_A_weight_AMu.shape[1])])
         return(np.mean(cos_list))
-
-    def get_gene_idx(self, gene_name):
-        gene_idx = list(self.gene_name_list).index(gene_name.upper())
-        return(gene_idx)
