@@ -38,3 +38,10 @@ readRlist2Stge <- function(stge.save.list, dm.py.obj){
   do.call(stge.py.obj$set_params, stge.save.list$params)
   return(stge.py.obj)
 }
+
+setUpOptimizedStge <- function(...){
+  stge.py.ref <- py_shelve_call(
+    py_data_manupulation$set_up_optimized_stge,
+    ...)
+  return(stge.py.ref)
+}

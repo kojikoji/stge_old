@@ -81,3 +81,17 @@ readRlist2Dm <- function(dm.list, ct.py.obj){
   dm.py.obj$Yt <- dm.list$Yt
   return(dm.py.obj)
 }
+
+setUpCellTracker <- function(base.ct.path, ancestor.dict.path, sample.idx.vec.path ,point.num){
+  ct.py.ref <- py_shelve_call(
+    py_data_manupulation$set_up_precomputed_cell_tracker,
+    base.ct.path, ancestor.dict.path, sample.idx.vec.path, point.num)
+  return(ct.py.ref)
+}
+
+setUpDataManager <- function(sc.data.dict, ct.obj, ts.prefix.list, stage.time.dict, gene.df){
+  dm.py.ref <- py_shelve_call(
+    py_data_manupulation$set_up_data_manager,
+    sc.data.dict, ct.obj, ts.prefix.list, stage.time.dict, gene.df)
+  return(dm.py.ref)
+}

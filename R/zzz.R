@@ -14,6 +14,7 @@ safe_import_from_path <- function(module.name, libname, pckgname){
   reticulate::use_condaenv("r-reticulate")
   reticulate::use_virtualenv("r-reticulate")
   importlib <<- reticulate::import("importlib", delay_load = TRUE)
+  py_builtin <<- reticulate::import_builtins()
   safe_import_from_path("data_manager", libname, pckgname)
   safe_import_from_path("STGE", libname, pckgname)
   safe_import_from_path("utils", libname, pckgname)

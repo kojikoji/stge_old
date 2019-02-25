@@ -239,6 +239,10 @@ class data_manager:
         self.normalize_sc_dict()
         self.set_Ys_Yt_A()
 
+    def change_gene_df(self, gene_df):
+        self.register_use_gene(gene_df)
+        self.set_Ys_Yt_A()
+
     def refresh_ref_t(self):
         self.ref_t_nums = make_ref_t_nums(self.point_num, self.t_vec)
         self.ref_t_breaks = make_ref_t_breaks(self.point_num, self.t_vec)

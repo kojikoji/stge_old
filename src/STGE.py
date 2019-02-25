@@ -288,6 +288,35 @@ class STGE:
         print("Number of genes used in estimation: ", self.Ys.shape[1])
         self.regulalize_Y(reg_method)
 
+    def set_gene(self, gene_df, filter=True, reg_method="zscore"):
+        self.A = self.dm.get_ts_assignment_matrix()
+        gene_id_list = gene_df.gene_id
+        Ys = self.dm.get_sc_exp_mat(gene_id_list)
+        Yt = self.dm.get_ts_exp_mat(gene_id_list)
+        if filter:
+            Ys_slice = get_num_break_slice(
+                self.dm.sc_t_nums, self.dm.sc_t_breaks, 7.6)
+            ts_many_exp_genes = np.apply_along_axis(
+                lambda x: len(x[x > 0]), 0, Yt) > 0
+            sc_many_exp_genes = np.apply_along_axis(
+                lambda x: len(x[x > 0]), 0, Ys[Ys_slice, :]) > 0
+            many_exp_genes = np.logical_and(ts_many_exp_genes, sc_many_exp_genes)
+            ts_no_inf_gene = np.logical_not(np.isnan(np.sum(Yt, axis=0)))
+            many_exp_genes = np.logical_and(many_exp_genes, ts_no_inf_gene)
+            self.many_exp_genes = many_exp_genes
+            self.Yt = Yt[:, many_exp_genes]
+            self.Ys = Ys[:, many_exp_genes]
+            self.gene_id_list = gene_df.gene_id[many_exp_genes]
+            self.gene_name_list = gene_df.gene_name[many_exp_genes]
+            print("Number of genes used in estimation: ", self.Ys.shape[1])
+        else:
+            self.Yt = Yt
+            self.Ys = Ys
+            self.gene_id_list = gene_df.gene_id
+            self.gene_name_list = gene_df.gene_name
+            print("Number of genes used in estimation: ", self.Ys.shape[1])
+        self.regulalize_Y(reg_method)
+
     def regulalize_Y(self, method):
         mean_Ys = np.mean(self.Ys, axis=0).reshape((1, self.Ys.shape[1]))
         std_Ys = np.std(self.Ys, axis=0).reshape((1, self.Ys.shape[1]))
