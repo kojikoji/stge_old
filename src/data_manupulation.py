@@ -302,7 +302,8 @@ def set_up_precomputed_cell_tracker(base_ct_path, ancestor_dict_path, sample_idx
 
 
 @memory.cache
-def set_up_data_manager(sc_data_dict, ct, ts_prefix_dict, stage_time_dict, gene_df):
+def set_up_data_manager(sc_data_dict, ct, ts_prefix_dict, stage_time_dict, gene_df, fix_angle):
+    print("update")
     dm = data_manager()
     dm.register_use_gene(gene_df)
     dm.point_num = ct.point_num
@@ -310,7 +311,7 @@ def set_up_data_manager(sc_data_dict, ct, ts_prefix_dict, stage_time_dict, gene_
     dm.stage_time_dict = stage_time_dict
     dm.register_sc_dict(sc_data_dict)
     dm.register_tomoseq(ts_prefix_dict["shield"], stage_time_dict["shield"])
-    dm.register_tomoseq_ss(ts_prefix_dict["10ss"], stage_time_dict["10ss"])
+    dm.register_tomoseq_ss(ts_prefix_dict["10ss"], stage_time_dict["10ss"], fix_angle)
     return(dm)
 
 
@@ -318,11 +319,11 @@ def set_up_data_manager(sc_data_dict, ct, ts_prefix_dict, stage_time_dict, gene_
 def set_up_optimized_stge(dm, marker_gene_df, reconst_gene_df,
                           vb_params, reconst_params,
                           vb_iter, iter_num):
+    print("check")
     stge = STGE()
     dm.process()
     dm.change_gene_df(marker_gene_df)
     stge.register_data_manager(dm)
-    stge.set_gene(marker_gene_df)
     stge.set_params(**vb_params)
     stge.init_VB_var()
     stge.variational_bayes(max_iter=vb_iter)
@@ -330,7 +331,4 @@ def set_up_optimized_stge(dm, marker_gene_df, reconst_gene_df,
         stge.set_optimized_sigma_f()
         stge.set_optimized_sigma_s_t()
         stge.variational_bayes(max_iter=vb_iter)
-    stge.set_gene(reconst_gene_df, filter=False)
-    stge.set_params(**reconst_params)
-    stge.sc_mode()
     return(stge)

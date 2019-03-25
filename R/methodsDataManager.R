@@ -92,6 +92,6 @@ setUpCellTracker <- function(base.ct.path, ancestor.dict.path, sample.idx.vec.pa
 setUpDataManager <- function(sc.data.dict, ct.obj, ts.prefix.list, stage.time.dict, gene.df){
   dm.py.ref <- py_shelve_call(
     py_data_manupulation$set_up_data_manager,
-    sc.data.dict, ct.obj, ts.prefix.list, stage.time.dict, gene.df)
+    sc.data.dict, ct.obj, ts.prefix.list, stage.time.dict, gene.df, -0.57)
   return(dm.py.ref)
 }

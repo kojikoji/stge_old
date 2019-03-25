@@ -286,7 +286,6 @@ class STGE:
         self.Yt = self.dm.Yt
         self.Ys = self.dm.Ys
         print("Number of genes used in estimation: ", self.Ys.shape[1])
-        self.regulalize_Y(reg_method)
 
     def set_gene(self, gene_df, filter=True, reg_method="zscore"):
         self.A = self.dm.get_ts_assignment_matrix()

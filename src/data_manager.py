@@ -136,6 +136,10 @@ class data_manager:
         gene_name = self.gene_df.query("gene_id == @gene_id")["gene_name"].iloc[0]
         return(gene_name)
 
+    def gene_name2id(self, gene_name):
+        gene_name = self.gene_df.query("gene_name == @gene_name")["gene_id"].iloc[0]
+        return(gene_name)
+
     def register_cell_tracker(self, file_name):
         self.ct = cell_tracker()
         self.ct.register_mat_file(file_name)
@@ -181,7 +185,7 @@ class data_manager:
         self.ts_t_vec = safe_append(self.ts_t_vec, hpf)
         pmat = self.ct.get_pmat(hpf)
         ts_all = tomo_seq_all_axis(pmat)
-        axis_list = ["av", "vd", "lr"]
+        axis_list = ["av", "vd"]
         for i in range(len(axis_list)):
             axis = axis_list[i]
             divnum = np.arange(-1400, 1400,
@@ -190,14 +194,14 @@ class data_manager:
             ts_all.register_axis(filename, axis, divnum)
         self.ts_dict[hpf] = ts_all
 
-    def register_tomoseq_ss(self, prefix, hpf, stage="10ss"):
+    def register_tomoseq_ss(self, prefix, hpf, stage="10ss", fix_angle = 0):
         self.stage_time_dict[stage] = hpf
         self.t_vec = safe_append(self.t_vec, hpf)
         self.ts_t_vec = safe_append(self.ts_t_vec, hpf)
-        pmat = self.ct.get_pmat(hpf)
+        pmat = self.ct.get_pmat(hpf, fix_angle)
         ts_all = tomo_seq_all_axis(pmat)
-        axis_list = ["va", "dv", "lr"]
-        label_list = ["av", "vd", "lr"]
+        axis_list = ["dv", "lr"]
+        label_list = ["vd", "lr"]
         for i in range(len(axis_list)):
             axis = axis_list[i]
             label = label_list[i]
@@ -291,10 +295,33 @@ class data_manager:
             axis=1)
         return(exp_mat)
 
-    def set_Ys_Yt_A(self):
+    def select_gene(self):
+        selected_gene_name = [
+            gene_name for gene_name, gene_id in zip(self.gene_df.gene_name, self.gene_df.gene_id)
+            if np.sum(get_record_safe(self.sc_dict[self.stage_time_dict['shield']], gene_name) != 0) > 10
+            and
+            self.ts_dict[self.stage_time_dict["shield"]].get_total(gene_id) > 0]
+        return(selected_gene_name)
+
+    def set_Ys_Yt_A(self, vb_mode=True, method="zscore"):
         self.A = self.get_ts_assignment_matrix()
-        self.Ys = self.get_sc_exp_mat(self.gene_df.gene_name)
-        self.Yt = self.get_ts_exp_mat(self.gene_df.gene_id)
+        if vb_mode:
+            selected_gene_name = self.select_gene()
+        else:
+            selected_gene_name = self.gene_df.gene_name
+        self.Ys = self.get_sc_exp_mat(selected_gene_name)
+        self.Yt = self.get_ts_exp_mat([self.gene_name2id(gene_name) for gene_name in selected_gene_name])
+
+    def regulalize_Y(self, method):
+        mean_Ys = np.mean(self.Ys, axis=0).reshape((1, self.Ys.shape[1]))
+        std_Ys = np.std(self.Ys, axis=0).reshape((1, self.Ys.shape[1]))
+        cell_num = np.sum(self.A, axis=1).reshape(self.A.shape[0], 1)
+        if method == 'zscore':
+            self.Ys = (self.Ys - mean_Ys)/std_Ys
+            self.Yt = (self.Yt - cell_num @ mean_Ys)/std_Ys
+        elif method == 'sum':
+            self.Ys = self.Ys/mean_Ys
+            self.Yt = self.Yt/mean_Ys
 
     def get_pmat(self, hpf):
         pmat = self.ct.get_pmat(hpf)
