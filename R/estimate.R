@@ -39,6 +39,14 @@ readRlist2Stge <- function(stge.save.list, dm.py.obj){
   return(stge.py.obj)
 }
 
+##' .. content for \description{} (no empty lines) ..
+##'
+##' .. content for \details{} ..
+##' @title 
+##' @param ... 
+##' @return 
+##' @author 小嶋泰弘
+##' @export
 setUpOptimizedStge <- function(...){
   stge.py.ref <- py_shelve_call(
     py_data_manupulation$set_up_optimized_stge,

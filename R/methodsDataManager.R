@@ -8,6 +8,7 @@
 ##' @author Yasuhiro Kojima
 ##'
 ##' @import purrr
+##' @export
 initializeDataManager <- function(sc.data.dict, ct.obj, stage.time.dict, gene.df, ts.arg.list){
   dm.py.obj <- py_data_manager$data_manager()
   dm.py.obj$register_use_gene(gene.df)
@@ -81,14 +82,36 @@ readRlist2Dm <- function(dm.list, ct.py.obj){
   dm.py.obj$Yt <- dm.list$Yt
   return(dm.py.obj)
 }
-
+##' .. content for \description{} (no empty lines) ..
+##'
+##' .. content for \details{} ..
+##' @title 
+##' @param base.ct.path 
+##' @param ancestor.dict.path 
+##' @param sample.idx.vec.path 
+##' @param point.num 
+##' @return 
+##' @author 小嶋泰弘
+##' @export
 setUpCellTracker <- function(base.ct.path, ancestor.dict.path, sample.idx.vec.path ,point.num){
   ct.py.ref <- py_shelve_call(
     py_data_manupulation$set_up_precomputed_cell_tracker,
     base.ct.path, ancestor.dict.path, sample.idx.vec.path, point.num)
   return(ct.py.ref)
 }
-
+##' .. content for \description{} (no empty lines) ..
+##'
+##' .. content for \details{} ..
+##' @title 
+##' @param sc.data.dict 
+##' @param ct.obj 
+##' @param ts.prefix.list 
+##' @param stage.time.dict 
+##' @param gene.df 
+##' @param fix.angle 
+##' @return 
+##' @author 小嶋泰弘
+##' @export
 setUpDataManager <- function(sc.data.dict, ct.obj, ts.prefix.list, stage.time.dict, gene.df, fix.angle){
   dm.py.ref <- py_shelve_call(
     py_data_manupulation$set_up_data_manager,
