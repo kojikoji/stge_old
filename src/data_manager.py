@@ -198,8 +198,8 @@ class data_manager:
         self.stage_time_dict[stage] = hpf
         self.t_vec = safe_append(self.t_vec, hpf)
         self.ts_t_vec = safe_append(self.ts_t_vec, hpf)
-        pmat = self.ct.get_pmat(hpf, fix_angle)
-        ts_all = tomo_seq_all_axis(pmat)
+        pmat = self.ct.get_pmat(hpf)
+        ts_all = tomo_seq_all_axis(pmat, fix_angle)
         axis_list = ["dv", "lr"]
         label_list = ["vd", "lr"]
         for i in range(len(axis_list)):
