@@ -170,8 +170,8 @@ class data_manager:
 
     def register_tomoseq_ss10(self, prefix, hpf):
         stage = "ss10"
-        axis_list = ["dv", "lr"]
-        label_list = ["vd", "lr"]
+        axis_list = ["va", "dv", "lr"]
+        label_list = ["av", "vd", "lr"]
         divnum_fix_dict = pickle.load(
             open("data/base_data/tomo_seq/divnum_angle_ss10", "rb"))
         self.register_tomoseq_divnum(prefix, hpf, stage,
@@ -200,8 +200,8 @@ class data_manager:
         self.ts_t_vec = safe_append(self.ts_t_vec, hpf)
         pmat = self.ct.get_pmat(hpf)
         ts_all = tomo_seq_all_axis(pmat, fix_angle)
-        axis_list = ["dv", "lr"]
-        label_list = ["vd", "lr"]
+        axis_list = ["va", "dv", "lr"]
+        label_list = ["av", "vd", "lr"]
         for i in range(len(axis_list)):
             axis = axis_list[i]
             label = label_list[i]
@@ -243,9 +243,9 @@ class data_manager:
         self.normalize_sc_dict()
         self.set_Ys_Yt_A()
 
-    def change_gene_df(self, gene_df):
+    def change_gene_df(self, gene_df, vb_mode=True):
         self.register_use_gene(gene_df)
-        self.set_Ys_Yt_A()
+        self.set_Ys_Yt_A(vb_mode=vb_mode)
 
     def refresh_ref_t(self):
         self.ref_t_nums = make_ref_t_nums(self.point_num, self.t_vec)

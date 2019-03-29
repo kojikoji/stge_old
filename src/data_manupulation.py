@@ -311,7 +311,6 @@ def set_up_data_manager(sc_data_dict, ct, ts_prefix_dict, stage_time_dict, gene_
     dm.stage_time_dict = stage_time_dict
     dm.register_sc_dict(sc_data_dict)
     dm.register_tomoseq(ts_prefix_dict["shield"], stage_time_dict["shield"])
-    dm.register_tomoseq_ss(ts_prefix_dict["10ss"], stage_time_dict["10ss"], fix_angle)
     return(dm)
 
 
@@ -331,4 +330,7 @@ def set_up_optimized_stge(dm, marker_gene_df, reconst_gene_df,
         stge.set_optimized_sigma_f()
         stge.set_optimized_sigma_s_t()
         stge.variational_bayes(max_iter=vb_iter)
+    stge.dm.change_gene_df(reconst_gene_df, False)
+    stge.set_params(**reconst_params)
+    stge.sc_mode()
     return(stge)
