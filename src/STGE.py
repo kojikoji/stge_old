@@ -563,6 +563,33 @@ class STGE:
             self.dm.sc_t_nums, self.dm.sc_t_breaks,
             self.dm.ref_t_nums)
 
+    def sc_variational_bayes(self, max_iter=10):
+        pre_L = -1.0e100
+        self.L = pre_L/2
+        count = 0
+        L_minimum_change = 1.0e-5
+        A0 = np.zeros(self.A.shape)
+        while self.L > pre_L + L_minimum_change:
+            pre_L = self.L
+            self.Mu, self.Sigma = variational_bayes.calculate_Mu_Sigma(
+                self.Yt, self.Ys, self.Pi_list,
+                A0, self.K_inv, self.sigma_s, self.sigma_t,
+                self.dm.sc_t_nums, self.dm.sc_t_breaks,
+                self.dm.ref_t_nums)
+            self.Pi_list, self.mDelta_list = variational_bayes.calculate_Pi_mDelta(
+                self.Ys, self.Mu, self.Sigma, self.sigma_s,
+                self.dm.sc_t_nums, self.dm.sc_t_breaks,
+                self.dm.ref_t_nums, self.dm.ref_t_breaks)
+            self.L = variational_bayes.calculate_L(
+                self.Yt, self.Pi_list, self.mDelta_list,
+                self.Mu, self.Sigma,
+                A0, self.K, self.K_inv,
+                self.sigma_s, self.sigma_t)
+            print("L: ", self.L)
+            count += 1
+            if count > max_iter:
+                break
+
     def ts_mode(self):
         self.Mu, self.Sigma = variational_bayes.calculate_Mu_Sigma(
             self.Yt, self.Ys, self.Pi_list,
