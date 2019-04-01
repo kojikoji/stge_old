@@ -185,7 +185,7 @@ class data_manager:
         self.ts_t_vec = safe_append(self.ts_t_vec, hpf)
         pmat = self.ct.get_pmat(hpf)
         ts_all = tomo_seq_all_axis(pmat)
-        axis_list = ["av", "vd"]
+        axis_list = ["av", "vd", "lr"]
         for i in range(len(axis_list)):
             axis = axis_list[i]
             divnum = np.arange(-1400, 1400,
